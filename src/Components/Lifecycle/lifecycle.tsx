@@ -1,12 +1,24 @@
 import './lifecycle.scss';
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, useEffect, useState } from 'react';
 import '@patternfly/react-core/dist/styles/base.css';
-import { Card, Stack } from '@patternfly/react-core';
+import {
+  Bullseye,
+  Button,
+  Card,
+  EmptyState,
+  EmptyStateActions,
+  EmptyStateBody,
+  EmptyStateFooter,
+  EmptyStateHeader,
+  EmptyStateIcon,
+  EmptyStateVariant,
+  Spinner,
+  Stack,
+} from '@patternfly/react-core';
 import { getLifecycleChanges } from '../../api';
 import { ErrorObject } from '../../types/ErrorObject';
-
+import SearchIcon from '@patternfly/react-icons/dist/esm/icons/search-icon';
 // const SelectOptionVariations = lazy(() => import('../FilterComponents/LifecycleDropdown'));
-
 const LifecycleChart = lazy(() => import('../../Components/LifecycleChart/lifecycleChart'));
 const LifecycleTable = lazy(() => import('../../Components/LifecycleTable/lifecycleTable'));
 const LifecycleFilters = lazy(() => import('../../Components/LifecycleFilters/LifecycleFilters'));
@@ -31,18 +43,17 @@ type LifecycleChanges = {
 
 // Start = y0, end = y
 const lifecycleChartData = [
-  [{ x: 'Node.js 16', y0: new Date('2023-01'), y: new Date('2024-06'), packageType: 'Retired' }],
+  [{ x: 'RHEL 8.3', y0: new Date('2023-01'), y: new Date('2024-06'), packageType: 'Retired' }],
   [
     {
-      x: 'gcc-toolset 12',
+      x: 'RHEL 8.7',
       y0: new Date('2023-01'),
       y: new Date('2025-10'),
       packageType: 'Support ends within 6 months',
     },
   ],
-  [{ x: 'Ruby 3.1', y0: new Date('2024-08'), y: new Date('2025-06'), packageType: 'Not installed' }],
-  [{ x: 'gcc-toolset 12', y0: new Date('2023-01'), y: new Date('2027-10'), packageType: 'Supported' }],
-  [{ x: 'Ruby 3.0', y0: new Date('2024-08'), y: new Date('2025-06'), packageType: 'Upcoming release' }],
+  [{ x: 'RHEL 9.0', y0: new Date('2024-08'), y: new Date('2025-06'), packageType: 'Not installed' }],
+  [{ x: 'RHEL 9.1', y0: new Date('2023-01'), y: new Date('2027-10'), packageType: 'Supported' }],
 ];
 
 const LifecycleTab: React.FC<React.PropsWithChildren> = () => {
@@ -93,15 +104,42 @@ const LifecycleTab: React.FC<React.PropsWithChildren> = () => {
     filterData(name);
   };
 
-  // placeholder for later
+  const resetFilters = () => {
+    setNameFilter('');
+    setFilteredChartData(lifecycleChartData);
+    setFilteredTableData(relevantLifecycleChanges);
+  };
+
   if (isLoading) {
-    return <div>Loading</div>;
+    return (
+      <div>
+        <Bullseye>
+          <Spinner />
+        </Bullseye>
+      </div>
+    );
   }
 
-  // placehodler for later
+  // placeholder for later
   if (error) {
     return <div>{error.message}</div>;
   }
+
+  const emptyState = (
+    <Bullseye>
+      <EmptyState variant={EmptyStateVariant.sm}>
+        <EmptyStateHeader icon={<EmptyStateIcon icon={SearchIcon} />} titleText="No results found" headingLevel="h2" />
+        <EmptyStateBody>Clear all filters and try again.</EmptyStateBody>
+        <EmptyStateFooter>
+          <EmptyStateActions>
+            <Button variant="link" onClick={resetFilters}>
+              Clear all filters
+            </Button>
+          </EmptyStateActions>
+        </EmptyStateFooter>
+      </EmptyState>
+    </Bullseye>
+  );
 
   return (
     <React.Fragment>
@@ -113,8 +151,14 @@ const LifecycleTab: React.FC<React.PropsWithChildren> = () => {
             setIsLoading={(isLoading: boolean) => setIsLoading(isLoading)}
             setError={(error: ErrorObject) => setError(error)}
           />
-          <LifecycleChart lifecycleData={filteredChartData} />
-          <LifecycleTable lifecycleData={filteredTableData} />
+          {filteredChartData.length === 0 || filteredTableData.length === 0 ? (
+            emptyState
+          ) : (
+            <>
+              <LifecycleChart lifecycleData={filteredChartData} />
+              <LifecycleTable lifecycleData={filteredTableData} />
+            </>
+          )}
         </Card>
       </Stack>
     </React.Fragment>
