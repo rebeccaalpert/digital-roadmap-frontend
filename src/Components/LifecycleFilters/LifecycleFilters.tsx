@@ -3,7 +3,7 @@ import React from 'react';
 import { ErrorObject } from '../../types/ErrorObject';
 
 interface LifecycleFiltersProps {
-  nameFilter?: string;
+  nameFilter: string;
   setNameFilter: (name: string) => void;
   setError: (error: ErrorObject) => void;
   setIsLoading: (isLoading: boolean) => void;
@@ -23,6 +23,7 @@ export const LifecycleFilters: React.FunctionComponent<LifecycleFiltersProps> = 
               value={nameFilter}
               onChange={(_event, value) => setNameFilter(value)}
               onClear={() => setNameFilter('')}
+              aria-label="Find by name"
             />
           </ToolbarItem>
           <ToolbarItem>Second item</ToolbarItem>
