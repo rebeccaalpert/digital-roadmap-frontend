@@ -28,7 +28,7 @@ interface LifecycleFiltersProps {
   onLifecycleDropdownSelect: (value: string) => void;
   selectedChartSortBy: NamedCurve;
   setSelectedChartSortBy: (name: string) => void;
-  downloadCSV: () => void;
+  downloadCSV?: () => void;
 }
 
 const DROPDOWN_ITEMS = ['Retirement date', 'Name', 'Release version', 'Release date', 'Systems'];

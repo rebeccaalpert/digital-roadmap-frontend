@@ -23,12 +23,7 @@ interface ChartDataObject {
   packageType: string;
   version: string;
   numSystems: string;
-}
-
-interface BarData extends Omit<ChartDataObject, 'x'> {
   name: string;
-  x: number;
-  fill: string;
 }
 
 const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: LifecycleChartProps) => {
@@ -63,6 +58,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
         packageType,
         version,
         numSystems,
+        name,
       },
     ]);
   };
@@ -143,55 +139,29 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
 
   constructLifecycleData(lifecycleData);
 
+  // get unique package types
+  const uniqueTypes = [...new Set(updatedLifecycleData.flat().map((d) => d.packageType))];
+
+  // group by package type
+  const groupedData = uniqueTypes.map((type) => ({
+    packageType: type,
+    datapoints: updatedLifecycleData
+      .flat()
+      .filter((d) => d.packageType === type)
+      .map((d) => ({
+        name: d.name,
+        packageType: d.packageType,
+        version: d.version,
+        numSystems: d.numSystems,
+        x: d.x,
+        y: d.y,
+        y0: d.y0,
+      })),
+  }));
+
   const formatDate = (date: Date) => {
     const dateString = date?.toLocaleDateString('en-US', { timeZone: 'UTC' });
     return dateString;
-  };
-
-  const getPackageColor = (datum: string) => {
-    switch (datum) {
-      case 'Retired':
-        return 'var(--pf-v5-global--danger-color--100)';
-      case 'Support ends within 6 months':
-        return 'var(--pf-v5-global--warning-color--100)';
-      case 'Not installed':
-        return 'var(--pf-v5-global--palette--blue-200)';
-      case 'Supported':
-        return 'var(--pf-v5-global--success-color--100)';
-      case 'Upcoming release':
-        return 'var(--pf-v5-global--palette--blue-100)';
-      default:
-        return 'var(--pf-v5-global--default-color--300)';
-    }
-  };
-
-  const getChart = (lifecycle: ChartDataObject[], index: number) => {
-    const data: BarData[] = [];
-
-    lifecycle?.forEach((datum: ChartDataObject) => {
-      data.push({
-        ...datum,
-        name: datum.x,
-        x: (index += 1),
-        fill: getPackageColor(datum.packageType),
-      });
-    });
-
-    if (data?.length === 0) {
-      return null;
-    }
-    return (
-      <ChartBar
-        data={data}
-        key={index}
-        style={{
-          data: {
-            fill: ({ datum }) => datum.fill,
-            stroke: ({ datum }) => datum.fill,
-          },
-        }}
-      />
-    );
   };
 
   const fetchTicks = () => {
@@ -202,6 +172,29 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
 
   return (
     <div className="drf-lifecycle__chart" tabIndex={0}>
+      <svg aria-hidden height="0" width="0" style={{ display: 'block' }}>
+        <defs>
+          <pattern
+            id="pattern1"
+            patternUnits="userSpaceOnUse"
+            patternContentUnits="userSpaceOnUse"
+            width="5"
+            height="5"
+            x="0"
+            y="0"
+          >
+            <rect width="5" height="5" fill="white" />
+            <path
+              d="M 0 5 L 5 0 M -0.5 0.5 L 0.5 -0.5 M 4.5 5.5 L 5.5 4.5"
+              height="5"
+              width="5"
+              stroke="var(--pf-v5-global--success-color--100)"
+              strokeWidth="2"
+              patternTransform="scale(1.4 1.4)"
+            ></path>
+          </pattern>
+        </defs>
+      </svg>
       <Chart
         legendAllowWrap
         ariaDesc="Support timelines of packages and RHEL versions"
@@ -210,7 +203,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
           <ChartVoronoiContainer
             labelComponent={<ChartTooltip constrainToVisibleArea />}
             labels={({ datum }) => {
-              if (datum.name && datum.packageType && datum.y0) {
+              if (datum.name && datum.y0) {
                 return `Name: ${datum.name}\nRelease: ${datum.version}\nSupport Type: ${datum.packageType}\nSystems: ${
                   datum.numSystems
                 }\nStart: ${formatDate(new Date(datum.y0))}\nEnd: ${formatDate(new Date(datum.y))}`;
@@ -220,11 +213,11 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
           />
         }
         legendData={[
-          { name: 'Supported', symbol: { fill: 'var(--pf-v5-global--success-color--100)' } },
-          { name: 'Support ends within 6 months', symbol: { fill: 'var(--pf-v5-global--warning-color--100)' } },
-          { name: 'Retired', symbol: { fill: 'var(--pf-v5-global--danger-color--100)' } },
-          { name: 'Not installed', symbol: { fill: 'var(--pf-v5-global--palette--blue-200)' } },
-          { name: 'Upcoming release', symbol: { fill: 'var(--pf-v5-global--palette--blue-100)' } },
+          { name: 'Supported' },
+          { name: 'Support ends within 6 months' },
+          { name: 'Retired' },
+          { name: 'Not installed' },
+          { name: 'Upcoming release' },
         ]}
         legendPosition="bottom-left"
         name="chart5"
@@ -237,6 +230,15 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
         // adjust this by number of items
         height={updatedLifecycleData.length * 15 + 300}
         width={900}
+        patternScale={['url("#pattern1")', '', '', '', '', '']}
+        colorScale={[
+          'var(--pf-v5-global--success-color--100)',
+          'var(--pf-v5-global--danger-color--100)',
+          'var(--pf-v5-global--warning-color--100)',
+          'var(--pf-v5-global--palette--blue-200)',
+          'var(--pf-v5-global--palette--blue-100)',
+          'var(--pf-v5-global--default-color--300)',
+        ]}
       >
         {Object.values(years).length > 0 && (
           <ChartAxis
@@ -247,7 +249,19 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
           />
         )}
         <ChartAxis showGrid tickValues={fetchTicks()} />
-        <ChartGroup horizontal>{updatedLifecycleData.map((data, index) => getChart(data, index))}</ChartGroup>
+        <ChartGroup horizontal>
+          {groupedData.map((data, index) => (
+            <ChartBar
+              data={data.datapoints}
+              key={index}
+              style={{
+                data: {
+                  stroke: ({ datum }) => datum.fill,
+                },
+              }}
+            />
+          ))}
+        </ChartGroup>
         <ChartLine
           y={() => Date.now()}
           y0={() => Date.now()}
