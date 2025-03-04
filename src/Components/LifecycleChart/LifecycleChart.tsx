@@ -28,6 +28,7 @@ interface ChartDataObject {
   packageType: string;
   version: string;
   numSystems: string;
+  typeID?: number | null;
 }
 
 interface Datum {
@@ -115,8 +116,18 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     }
     if (dataType === 'appLifecycle') {
       (lifecycleData as Stream[]).forEach((item) => {
-        if (item.start_date === 'Unknown' || item.end_date === 'Unknown' || item.rhel_major_version === 8) {
+        if (item.start_date === 'Unknown' || item.end_date === 'Unknown') {
           return;
+        }
+        if (item.rhel_major_version === 8){
+          formatChartData(
+            `${item.name} ${item.stream}`,
+            item.start_date,
+            item.end_date,
+            'Retired',
+            `${item.rhel_major_version}`,
+            `${item.systems ?? 'N/A'}`
+          );
         }
         formatChartData(
           `${item.name} ${item.stream}`,
@@ -152,13 +163,20 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
   // get unique package types
   const uniqueTypes = [...new Set(updatedLifecycleData.flat().map((d) => d.packageType))];
 
+  // Add typeID to updatedLifecycleData
+  updatedLifecycleData.forEach((group) => {
+    group.forEach((data) => {
+      data.typeID = uniqueTypes.indexOf(data.packageType);
+    });
+  });
+
   // group by package type
-  const groupedData = uniqueTypes.map((type) => ({
+  const groupedData = uniqueTypes.map((type, index) => ({
     packageType: type,
     datapoints: updatedLifecycleData
       .flat()
       .filter((d) => d.packageType === type)
-      .map((d) => ({ x: d.x, y: d.y, y0: d.y0 })),
+      .map((d) => ({ x: d.x, y: d.y, y0: d.y0, packageType: d.packageType, version: d.version, numSystems: d.numSystems, typeID: index})),
   }));
 
   const getLegendData = () =>
@@ -167,9 +185,9 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
       name: s.packageType,
       ...getInteractiveLegendItemStyles(hiddenSeries.has(index)),
     }));
-    debugger;
 
   const handleLegendClick = (props: { index: number }) => {
+    debugger;
     if (!hiddenSeries.delete(props.index)) {
       hiddenSeries.add(props.index);
     }
@@ -198,17 +216,30 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     }
   };
 
-  const getChart = (lifecycle: ChartDataObject[], index: number) => {
+  const getChart = (lifecycle: any, index: number) => {
     const data: any[] = [];
+    
+    //debugger;
 
-    lifecycle?.forEach((datum: { packageType: string; x: string }) => {
-      data.push({
-        ...datum,
-        name: datum.x,
-        x: (index += 1),
-        fill: getPackageColor(datum.packageType),
-      });
+    // if (hiddenSeries.has(index)) {
+    //   return null;
+    // }
+
+    lifecycle?.forEach((datum: { packageType: string; x: string, typeID: number }) => { // for groupedData use lifecycle?.datapoints
+      if (!hiddenSeries.has(datum.typeID)) {
+        data.push({
+          ...datum,
+          name: datum.x,
+          x: (index += 1),
+          fill: getPackageColor(datum.packageType),
+        });
+      }
     });
+
+    if (data?.length !== 0) {
+      //debugger;
+    }
+    
 
     if (data?.length === 0) {
       return null;
@@ -216,7 +247,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     return (
       <ChartBar
         data={data}
-        key={`bar-${index}`}
+        key={`bar-${index}`} // the index is used for hiding. In the example all the supported has the same index, all the retied.
         name={`series-${index}`}
         style={{
           data: {
@@ -238,7 +269,12 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
   const isDataAvailable = () => hiddenSeries.size !== groupedData.length;
   
   console.log(getLegendData);
-  debugger;
+  console.log(updatedLifecycleData);
+  console.log(groupedData);
+  console.log(lifecycleData);
+  if (groupedData?.length !== 0) {
+      debugger;
+    }
 
   const CursorVoronoiContainer = createContainer('voronoi', 'cursor');
   const container = React.cloneElement(
@@ -258,6 +294,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
       disable: !isDataAvailable(),
     }
   );
+  
 
   return (
     <div className="drf-lifecycle__chart" tabIndex={0}>
@@ -294,16 +331,17 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
           />
         )}
         <ChartAxis showGrid tickValues={fetchTicks()} />
-        <ChartGroup horizontal offset={20}>
-          {groupedData.map((s, index) => (
-            <ChartBar
-              data={!hiddenSeries.has(index) ? s.datapoints : s.datapoints.map((d) => ({ ...d, y: null }))}
-              key={`bar-${index}`}
-              name={`series-${index}`}
-              barWidth={20}
-            />
-          ))}
-        </ChartGroup>
+        <ChartGroup horizontal>{updatedLifecycleData.map((data, index) => getChart(data, index))}</ChartGroup>
+        <ChartLine
+          y={() => Date.now()}
+          y0={() => Date.now()}
+          style={{
+            data: {
+              stroke: 'black',
+              strokeWidth: 0.5,
+            },
+          }}
+        />
       </Chart>
     </div>
   );
