@@ -29,12 +29,14 @@ interface ChartDataObject {
   version: string;
   numSystems: string;
   typeID?: number | null;
+  name: string;
 }
 
 interface Datum {
   childName: string;
   x: string;
   y?: Date | null;
+  name: string;
 }
 
 const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: LifecycleChartProps) => {
@@ -70,6 +72,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
         packageType,
         version,
         numSystems,
+        name: name,
       },
     ]);
   };
@@ -176,7 +179,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     datapoints: updatedLifecycleData
       .flat()
       .filter((d) => d.packageType === type)
-      .map((d) => ({ x: d.x, y: d.y, y0: d.y0, packageType: d.packageType, version: d.version, numSystems: d.numSystems, typeID: index})),
+      .map((d) => ({ x: d.x, y: d.y, y0: d.y0, packageType: d.packageType, version: d.version, numSystems: d.numSystems, typeID: index, name: d.x})),
   }));
 
   const getLegendData = () =>
@@ -224,6 +227,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     // if (hiddenSeries.has(index)) {
     //   return null;
     // }
+    
 
     lifecycle?.forEach((datum: { packageType: string; x: string, typeID: number }) => { // for groupedData use lifecycle?.datapoints
       if (!hiddenSeries.has(datum.typeID)) {
@@ -237,7 +241,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
     });
 
     if (data?.length !== 0) {
-      //debugger;
+      debugger;
     }
     
 
@@ -248,7 +252,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
       <ChartBar
         data={data}
         key={`bar-${index}`} // the index is used for hiding. In the example all the supported has the same index, all the retied.
-        name={`series-${index}`}
+        name={`series-${data[0].typeID}`} // the index is used the one from the foeEach - problem, index 0 can be used as we only have 1 item there
         style={{
           data: {
             fill: ({ datum }) => datum.fill,
@@ -266,7 +270,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
   };
 
   const isHidden = (index: number) => hiddenSeries.has(index);
-  const isDataAvailable = () => hiddenSeries.size !== groupedData.length;
+  const isDataAvailable = () => hiddenSeries.size !== uniqueTypes.length;
   
   console.log(getLegendData);
   console.log(updatedLifecycleData);
@@ -282,7 +286,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
       cursorDimension="x"
       labels={({ datum }: {datum: Datum}) =>
         datum.childName.includes('series-') && datum.y !== null
-          ? `${datum.x}: ${datum.y?.toLocaleDateString()}`
+          ? `${datum.name}: ${datum.y?.toLocaleDateString()}`
           : null
       }
       labelComponent={<ChartLegendTooltip legendData={getLegendData()} title={(datum) => (datum.x ? datum.x : 'no datum')} />}
@@ -304,7 +308,7 @@ const LifecycleChart: React.FC<LifecycleChartProps> = ({ lifecycleData }: Lifecy
         ariaTitle="Lifecycle bar chart"
         containerComponent={container}
         events={getInteractiveLegendEvents({
-          chartNames: [groupedData.map((_, i) => `series-${i}`)],
+          chartNames: [updatedLifecycleData.map((_, i) => `series-${i}`)],
           isHidden,
           legendName: 'chart5-ChartLegend',
           onLegendClick: handleLegendClick,
